@@ -1,43 +1,72 @@
-# Svelte + Vite
+**中文** | [English](./README-EN.md)
 
-This template should help get you started developing with Svelte in Vite.
+# Happy Eliminate (开心消消乐)
 
-## Recommended IDE Setup
+这是一个基于 Svelte、Vite 和 Phaser 3 构建的网页端消除类小游戏。
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+## 🛠️ 技术栈
 
-## Need an official Svelte framework?
+- **框架支持**: [Svelte 5](https://svelte.dev/) - 用于构建游戏外的UI和页面交互。
+- **构建工具**: [Vite 8](https://vitejs.dev/) - 提供极速的本地开发服务器和生产环境构建。
+- **游戏引擎**: [Phaser 3.90](https://phaser.io/) - 用于处理游戏核心场景、精灵渲染和物理逻辑。
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## 📂 核心目录结构
 
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```text
+├── public/                 # 公共静态资源
+│   └── game-assets/        # 游戏素材（背景图案、图块、音效等）
+├── scripts/                # 独立的功能及测试脚本
+│   └── test-logic.mjs      # 游戏逻辑测试脚本
+├── src/
+│   ├── game/               # 游戏核心系统
+│   │   ├── assets/         # Phaser资源加载清单配置
+│   │   ├── audio/          # 游戏音效控制
+│   │   ├── phaser/         # Phaser游戏实例、场景 (Scenes) 配置
+│   │   ├── simulation/     # 纯净的核心规则、消除逻辑、随机算法与状态推演
+│   │   └── stores/         # 提供 Svelte Stores 与 Phaser 之间的数据通讯桥梁
+│   ├── lib/                # 可复用的 Svelte 业务组件
+│   ├── App.svelte          # 页面入口组件
+│   └── main.js             # 客户端挂载入口
 ```
+
+## 🚀 起步指南
+
+本项目推荐使用 [pnpm](https://pnpm.io/) 作为包管理器。
+
+### 1. 安装依赖
+
+```bash
+pnpm install
+```
+
+### 2. 本地开发调试
+
+启动开发服务器，支持模块热替换（HMR）：
+
+```bash
+pnpm run dev
+```
+
+### 3. 测试游戏逻辑
+
+单独执行游戏核心消除逻辑的脚本验证，不依赖浏览器环境：
+
+```bash
+pnpm run test:logic
+```
+
+### 4. 生产环境构建
+
+将项目进行打包，并可本地预览打包结果：
+
+```bash
+pnpm run build
+pnpm run preview
+```
+
+## 🎮 架构理念
+
+项目采用了 **数据与视图分离** 的设计理念：
+- **纯逻辑层 (`src/game/simulation/`)**：处理所有的消除判定、掉落、匹配逻辑，与渲染引擎和UI框架完全解耦。
+- **渲染层 (`src/game/phaser/`)**：专注于将逻辑层的状态以生动的动画绘制出来。
+- **UI交互层 (`src/lib/` & `App.svelte`)**：借助 Svelte 的响应式数据 (`stores`) 轻松制作和渲染游戏外围面板（如计分板、设置菜单）。
