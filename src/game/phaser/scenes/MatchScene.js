@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { backgroundAssets, tileAssets } from '../../assets/manifest.js'
 import { Sfx } from '../../audio/sfx.js'
+import { GAME_MESSAGES } from '../../content/copy.js'
 import { GRID_SIZE } from '../../simulation/constants.js'
 import {
   applyPlayerMove,
@@ -14,12 +15,6 @@ const BOARD_STEP = 70
 const TILE_SIZE = 62
 const BOARD_PADDING = 18
 const BEST_SCORE_KEY = 'happy-eliminate-best-score'
-
-function wait(scene, duration) {
-  return new Promise((resolve) => {
-    scene.time.delayedCall(duration, resolve)
-  })
-}
 
 export class MatchScene extends Phaser.Scene {
   constructor() {
@@ -105,7 +100,7 @@ export class MatchScene extends Phaser.Scene {
     this.pausedByUi = false
     this.state = createGameState()
     this.renderBoardInstant()
-    this.publish('开始')
+    this.publish(GAME_MESSAGES.ready)
   }
 
   getBestScore() {
@@ -145,6 +140,10 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  setTileSize(sprite, multiplier = 1) {
+    return sprite.setDisplaySize(TILE_SIZE * multiplier, TILE_SIZE * multiplier)
+  }
+
   createTileSprite(tile, row, column, startRow = row) {
     const start = this.positionFor(startRow, column)
     const sprite = this.add
@@ -179,14 +178,13 @@ export class MatchScene extends Phaser.Scene {
 
         sprite
           .setTexture(tile.type)
-          .setDisplaySize(TILE_SIZE, TILE_SIZE)
           .setPosition(position.x, position.y)
           .setAlpha(1)
-          .setScale(1)
           .clearTint()
           .setData('row', row)
           .setData('column', column)
           .setDepth(10 + row)
+        this.setTileSize(sprite)
 
         seen.add(tile.id)
       }
@@ -216,7 +214,8 @@ export class MatchScene extends Phaser.Scene {
         }
 
         sprite.setData('row', row).setData('column', column).setDepth(10 + row)
-        sprite.clearTint().setScale(1)
+        sprite.clearTint()
+        this.setTileSize(sprite)
         seen.add(tile.id)
 
         if (animated && !this.reducedMotion) {
@@ -306,15 +305,21 @@ export class MatchScene extends Phaser.Scene {
     const tile = this.state.board[row][column]
     const sprite = this.sprites.get(tile.id)
 
-    sprite?.setTint(0xffffff).setScale(1.08)
-    this.publish('已选中')
+    if (sprite) {
+      sprite.setTint(0xffffff)
+      this.setTileSize(sprite, 1.08)
+    }
+    this.publish(GAME_MESSAGES.tileSelected)
   }
 
   clearSelection() {
     if (this.selected) {
       const tile = this.state.board[this.selected.row]?.[this.selected.column]
       const sprite = tile ? this.sprites.get(tile.id) : null
-      sprite?.clearTint().setScale(1)
+      if (sprite) {
+        sprite.clearTint()
+        this.setTileSize(sprite)
+      }
     }
 
     this.selected = null
@@ -346,7 +351,7 @@ export class MatchScene extends Phaser.Scene {
       await this.animateSwap(firstTile.id, secondTile.id, from, to, true)
       this.sfx.reject()
       this.busy = false
-      this.publish('没有形成消除')
+      this.publish(GAME_MESSAGES.invalidMove)
       return
     }
 
@@ -355,7 +360,7 @@ export class MatchScene extends Phaser.Scene {
     await this.animateCascade(result.steps)
 
     if (result.shuffled) {
-      this.publish('重新洗牌')
+      this.publish(GAME_MESSAGES.shuffled)
       this.cameras.main.shake(this.reducedMotion ? 80 : 180, 0.004)
       await this.syncSpritesToState(true)
     } else {
@@ -375,18 +380,18 @@ export class MatchScene extends Phaser.Scene {
 
   statusMessage() {
     if (this.state.status === 'won') {
-      return '目标达成'
+      return GAME_MESSAGES.won
     }
 
     if (this.state.status === 'lost') {
-      return '步数用尽'
+      return GAME_MESSAGES.lost
     }
 
     if (this.state.combo > 1) {
-      return `${this.state.combo} 连击`
+      return GAME_MESSAGES.combo(this.state.combo)
     }
 
-    return '继续消除'
+    return GAME_MESSAGES.keepGoing
   }
 
   animateSwap(firstId, secondId, from, to, revert) {
@@ -443,7 +448,7 @@ export class MatchScene extends Phaser.Scene {
 
   async animateCascade(steps) {
     for (const step of steps) {
-      this.publish(`${step.combo} 连击 +${step.scoreGain}`)
+      this.publish(GAME_MESSAGES.cascade(step.combo, step.scoreGain))
       this.sfx.match(step.combo)
 
       await this.fadeMatches(step.matches)
@@ -463,10 +468,12 @@ export class MatchScene extends Phaser.Scene {
       this.burstAt(sprite.x, sprite.y, match.type)
 
       return new Promise((resolve) => {
+        const scaleMultiplier = this.reducedMotion ? 0.9 : 1.22
         this.tweens.add({
           targets: sprite,
           alpha: 0,
-          scale: this.reducedMotion ? 0.9 : 1.22,
+          scaleX: sprite.scaleX * scaleMultiplier,
+          scaleY: sprite.scaleY * scaleMultiplier,
           angle: this.reducedMotion ? 0 : Phaser.Math.Between(-10, 10),
           duration,
           ease: 'Quad.easeIn',
@@ -552,9 +559,8 @@ export class MatchScene extends Phaser.Scene {
 
     for (let index = 0; index < 36; index += 1) {
       const x = Phaser.Math.Between(90, 630)
-      const dot = this.add
-        .circle(x, -20, Phaser.Math.Between(4, 8), Phaser.Math.RND.pick([0xf24858, 0xffd447, 0x36a0ff, 0xa84fe8]), 0.9)
-        .setDepth(40)
+      const color = Phaser.Math.RND.pick([0xf24858, 0xffd447, 0x36a0ff, 0xa84fe8])
+      const dot = this.add.circle(x, -20, Phaser.Math.Between(4, 8), color, 0.9).setDepth(40)
 
       this.tweens.add({
         targets: dot,
@@ -577,7 +583,7 @@ export class MatchScene extends Phaser.Scene {
     const move = findBestMove(this.state.board)
 
     if (!move) {
-      this.publish('暂无提示')
+      this.publish(GAME_MESSAGES.noHint)
       return
     }
 
@@ -593,27 +599,28 @@ export class MatchScene extends Phaser.Scene {
 
       this.tweens.add({
         targets: sprite,
-        scale: 1.16,
+        scaleX: sprite.scaleX * 1.16,
+        scaleY: sprite.scaleY * 1.16,
         yoyo: true,
         repeat: 2,
         duration: this.reducedMotion ? 80 : 170,
         ease: 'Sine.easeInOut',
-        onComplete: () => sprite.setScale(1),
+        onComplete: () => this.setTileSize(sprite),
       })
     }
 
-    this.publish('提示已高亮')
+    this.publish(GAME_MESSAGES.hint)
   }
 
   setGamePaused(paused) {
     this.pausedByUi = paused
-    this.publish(paused ? '已暂停' : '继续')
+    this.publish(paused ? GAME_MESSAGES.paused : GAME_MESSAGES.resumed)
   }
 
   toggleSound() {
     this.soundEnabled = !this.soundEnabled
     this.sfx.setEnabled(this.soundEnabled)
-    this.publish(this.soundEnabled ? '音效开启' : '音效关闭')
+    this.publish(this.soundEnabled ? GAME_MESSAGES.soundOn : GAME_MESSAGES.soundOff)
     return this.soundEnabled
   }
 }

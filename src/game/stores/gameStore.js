@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store'
+import { GAME_MESSAGES } from '../content/copy.js'
 import { MOVE_LIMIT, TARGET_SCORE } from '../simulation/constants.js'
 
-export const initialHudState = {
+export const createInitialHudState = () => ({
   score: 0,
   targetScore: TARGET_SCORE,
   movesLeft: MOVE_LIMIT,
@@ -10,10 +11,12 @@ export const initialHudState = {
   status: 'loading',
   paused: false,
   soundEnabled: true,
-  message: '准备中',
-}
+  message: GAME_MESSAGES.loading,
+})
 
-export const gameHud = writable(initialHudState)
+export const initialHudState = createInitialHudState()
+
+export const gameHud = writable(createInitialHudState())
 
 export function publishHud(update) {
   gameHud.update((current) => ({
@@ -23,6 +26,5 @@ export function publishHud(update) {
 }
 
 export function resetHud() {
-  gameHud.set(initialHudState)
+  gameHud.set(createInitialHudState())
 }
-
