@@ -1,89 +1,98 @@
 <script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+  import { onMount } from 'svelte'
+  import { createPhaserGame } from './game/phaser/createGame.js'
+  import { gameHud } from './game/stores/gameStore.js'
+
+  let gameRoot
+  let gameApi
+
+  onMount(() => {
+    gameApi = createPhaserGame(gameRoot)
+
+    return () => {
+      gameApi?.destroy()
+    }
+  })
+
+  $: progress = Math.min(100, Math.round(($gameHud.score / $gameHud.targetScore) * 100))
+  $: resultTitle = $gameHud.status === 'won' ? '甜蜜通关' : '再来一局'
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
+<main class="game-shell">
+  <section class="hero-bar" aria-label="游戏状态">
+    <div>
+      <p class="eyebrow">Happy Eliminate</p>
+      <h1>开心消消乐</h1>
+    </div>
+    <div class="score-stack">
+      <span>最高分</span>
+      <strong>{$gameHud.bestScore}</strong>
+    </div>
+  </section>
 
-<div class="ticks"></div>
+  <section class="play-layout">
+    <div class="board-wrap">
+      <div class="canvas-frame">
+        <div class="game-canvas" bind:this={gameRoot}></div>
+      </div>
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
+      {#if $gameHud.paused || $gameHud.status === 'won' || $gameHud.status === 'lost'}
+        <div class="game-modal" role="dialog" aria-modal="true">
+          <div class="modal-panel">
+            {#if $gameHud.paused}
+              <p class="modal-kicker">暂停中</p>
+              <h2>糖果先等一下</h2>
+              <button class="primary-action" onclick={() => gameApi?.setPaused(false)}>继续游戏</button>
+            {:else}
+              <p class="modal-kicker">{$gameHud.score} / {$gameHud.targetScore}</p>
+              <h2>{resultTitle}</h2>
+              <button class="primary-action" onclick={() => gameApi?.restart()}>重新开始</button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </div>
 
-<div class="ticks"></div>
-<section id="spacer"></section>
+    <aside class="hud-panel" aria-label="控制面板">
+      <div class="target-card">
+        <div class="target-top">
+          <span>目标</span>
+          <strong>{$gameHud.targetScore}</strong>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <span style={`width: ${progress}%`}></span>
+        </div>
+        <div class="target-meta">
+          <span>分数 {$gameHud.score}</span>
+          <span>{progress}%</span>
+        </div>
+      </div>
+
+      <div class="metric-grid">
+        <div>
+          <span>步数</span>
+          <strong>{$gameHud.movesLeft}</strong>
+        </div>
+        <div>
+          <span>连击</span>
+          <strong>{$gameHud.combo || 0}</strong>
+        </div>
+      </div>
+
+      <div class="message-chip" aria-live="polite">{$gameHud.message}</div>
+
+      <div class="control-grid">
+        <button onclick={() => gameApi?.showHint()} disabled={$gameHud.paused || $gameHud.status !== 'playing'}>
+          提示
+        </button>
+        <button onclick={() => gameApi?.setPaused(!$gameHud.paused)} disabled={$gameHud.status !== 'playing'}>
+          {$gameHud.paused ? '继续' : '暂停'}
+        </button>
+        <button onclick={() => gameApi?.toggleSound()} aria-pressed={$gameHud.soundEnabled}>
+          {$gameHud.soundEnabled ? '音效开' : '音效关'}
+        </button>
+        <button onclick={() => gameApi?.restart()}>重开</button>
+      </div>
+    </aside>
+  </section>
+</main>
